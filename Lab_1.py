@@ -17,7 +17,7 @@ class LinearPotentials(torch.nn.Module):
         self.num_features = input_dim
         self.num_classes = output_dim
         self.linear = torch.nn.Linear(input_dim, output_dim)
-        self.history = {'train_loss':[], 'test_loss': [], 'accuracy':[]}
+        self.history = {'train_loss':[], 'test_loss': [], 'accuracy':[]} #use this in the loop and save the model to access mymodellist[0].history['accuracy'] access's dictionary
         if random_weights_init == True:
             print("Should Implement random weights Init")
             # YOUR CODE HERE
@@ -25,6 +25,11 @@ class LinearPotentials(torch.nn.Module):
             # initialize the weights of the self.linear layer to be uniform [0,1]. Can be 1 line of code.
             # Bonus if you can set the bias to 0!
             # ???????????
+            #self.linear 
+            #torch.nn.init.
+            torch.nn.init.xavier_uniform_(self.linear.weight)
+            self.linear.bias.data.fill_(0)
+            
             
     def forward(self, x):
         ''' DESCRIPTION: This class function is called everytime model(data) is called. Essentially
@@ -102,7 +107,7 @@ def evaluate_untrained_model(model, data, criterion = torch.nn.CrossEntropyLoss(
     y_prob = torch.softmax(y_raw_pred, 1)   # use softmax to get probability
     y_pred = torch.argmax(y_prob, axis=1)   # The predicted class is essentially the one with highest pred probability
     loss=criterion(y_raw_pred,y_test)       # calculate loss
-    print(y_test.shape, y_pred.shape)
+    #print(y_test.shape, y_pred.shape)
     test_accuracy = (sum(y_pred==y_test)/y_test.shape[0]).detach().numpy()  # count how many pred were off, divide by number of items
     print("Untrained Model's Performance on Test Data\n==========================================\nLoss: {} | Accuracy: {}".format(loss, test_accuracy))
     
@@ -139,7 +144,8 @@ def evaluate_model(model, data, optimizer, lr = 0.1, criterion = torch.nn.CrossE
     
     # Main training loop
     for epoch in range(number_of_epochs): 
-        y_prediction=model(x_train)          # make predictions
+        y_prediction=model(x_train).type(torch.float32)          # make predictions
+        # print(y_prediction.dtype, y_train.dtype)
         loss=criterion(y_prediction,y_train) # calculate losses
         model.history['train_loss'].append(loss.item()) # log progress to model's history
         loss.backward()                      # obtain gradients
@@ -157,6 +163,9 @@ def evaluate_model(model, data, optimizer, lr = 0.1, criterion = torch.nn.CrossE
         model.history['test_loss'].append(test_log_loss.item()) # log progress to model's history
         model.history['accuracy'].append(test_accuracy)         # log progress to model's history
         if (epoch+1)%print_interval == 0:                       # every print_interval iters print loss
+            # if debug == True:
+            #     for param in model.named_parameters():
+            #         print("Param = ",param) 
             print('Epoch:', epoch+1,',loss=',loss.item())
     # end of main training loop
     #--- |
@@ -199,14 +208,18 @@ def evaluate_error_metrics(model, data, optimizer, criterion = torch.nn.CrossEnt
                  error_std (float)
     ''' 
     # YOUR CODE HERE
-    # ??????????????
-    
+    # ?????????????? take to converse of accuracy, 1 - accurarcy and find standard deviation 
+    #loop through number of experiments (100) find all accuarcy (find error) and get mean of error and standard deviation of error
+    #create current model
     # You can create an optimizer given an existing one like this:
-    # curr_optim = type(optimizer)(cur_model.parameters(),lr=lr)
+    #model = LinearPotentials(num_features, num_classes, random_weights_init = True) #to makea  model 
+    curr_optim = type(optimizer)(cur_model.parameters(),lr=lr)
     # the above creates a new optimizer that tracks the input cur_model's parameters; so input the model you want to train.
     
     # Write the loop that will  run for number_of_experiments iters
-    
+    #for i in number_of_experiments:
+
+
     # Instantiate a model like the given one and evaluate it calling the evaluate function (with the NEW optimizer and model)
     # Get and log the results. compute the mean and std of the ERROR (not the accuracy) over all the number_of_experiments results!
     
@@ -258,8 +271,7 @@ def evaluate_with_model_regularization(model, data, optimizer, criterion = torch
         # Compute the L1 and L2 penalty of parameters and add to the loss
         # YOUR CODE HERE 
         # ??????????????
-        # Compute L1 or L2 (depending on argument reg_type)
-        # add the comptued regularization term to loss
+        # Compute L1 or L2 (depending on argument reg_type) check which L1 or L2 with an if, compute the l penalty
         # name the reg term: l_penalty
         # ??????????????
         
@@ -421,8 +433,8 @@ def main():
     # convert to tensors for Pytorch
     x_train = torch.from_numpy(x_train.astype(np.float32))
     x_test  = torch.from_numpy(x_test.astype(np.float32))
-    y_train = torch.from_numpy(y_train.astype(np.int_))
-    y_test  = torch.from_numpy(y_test.astype(np.int_))
+    y_train = torch.from_numpy(y_train.astype(np.int64))
+    y_test  = torch.from_numpy(y_test.astype(np.int64))
     data    = dict(x_train=x_train, x_test=x_test, y_train=y_train, y_test=y_test)
     
     # Get data info
@@ -432,9 +444,10 @@ def main():
     # Part 1
     # Declare learner model, loss objective, optimizer
     # Initialize learner with random weights
-    model = LinearPotentials(num_features, num_classes, random_weights_init = True)
+    model = LinearPotentials(num_features, num_classes, random_weights_init = True) # inittalized model for evalation error
     criterion = torch.nn.CrossEntropyLoss() # torch.nn.MultiMarginLoss()
     optimizer = torch.optim.SGD(model.parameters(),lr=0.1, momentum=0.1) # torch.optim.Adam(model.parameters(), lr=0.1)
+    loss, accuracy_test = evaluate_untrained_model(model, data, criterion)
     # Func1_call
     # ---|
     
@@ -442,6 +455,8 @@ def main():
     # ------------
     # Given a learning rate of 0.1 train on train data and report accuracy on test data
     # Func2_call 
+    evaluate_model(model, data, optimizer, lr = 0.1, criterion = torch.nn.CrossEntropyLoss(), 
+                  number_of_epochs = 10000, print_interval = 100, debug= False, print_plot=True)
     # ---|
     
     # Part 3
