@@ -25,8 +25,6 @@ class LinearPotentials(torch.nn.Module):
             # initialize the weights of the self.linear layer to be uniform [0,1]. Can be 1 line of code.
             # Bonus if you can set the bias to 0!
             # ???????????
-            #self.linear 
-            #torch.nn.init.
             torch.nn.init.xavier_uniform_(self.linear.weight)
             self.linear.bias.data.fill_(0)
             
@@ -213,7 +211,7 @@ def evaluate_error_metrics(model, data, optimizer, criterion = torch.nn.CrossEnt
     #create current model
     # You can create an optimizer given an existing one like this:
     #model = LinearPotentials(num_features, num_classes, random_weights_init = True) #to makea  model 
-    curr_optim = type(optimizer)(cur_model.parameters(),lr=lr)
+    #curr_optim = type(optimizer)(cur_model.parameters(),lr=lr)
     # the above creates a new optimizer that tracks the input cur_model's parameters; so input the model you want to train.
     
     # Write the loop that will  run for number_of_experiments iters
@@ -226,7 +224,7 @@ def evaluate_error_metrics(model, data, optimizer, criterion = torch.nn.CrossEnt
     # Compute the mean and std here after all the results are logged. Refer to the LinearPotentials class for insperation
     # on how to compute the metrics from a list or a dictionary.
     # ??????????????
-    
+    #mean_error = 1
     return mean_error, error_std
 
 # -----------------------------------------------------------------------------------------------
@@ -274,10 +272,19 @@ def evaluate_with_model_regularization(model, data, optimizer, criterion = torch
         # Compute L1 or L2 (depending on argument reg_type) check which L1 or L2 with an if, compute the l penalty
         # name the reg term: l_penalty
         # ??????????????
+        l_penalty = 0
+        if reg_type == 'l1':
+            l1 = sum(p.abs().sum() for p in model.parameters())
+            l_penalty = l_penalty + reg_lambda * l1
+        
+        elif reg_type == 'l2':
+            l2 = sum(p.pow(2.0).sum() for p in model.parameters())
+            l_penalty = l_penalty + reg_lambda * l2
+        
         
         loss.backward()                      # obtain gradients
         optimizer.step()                     # update parameters
-        optimizer.zero_grad()                # reset gradients
+        optimizer.zero_grad()                # r    eset gradients
         if (epoch+1)%print_interval == 0:
             print("Epoch: {}, {}-loss: {}".format(epoch+1,reg_type, loss.item()))
         
@@ -355,11 +362,16 @@ def learning_rate_iter_explore(model, data, optimizer, lr_range = [0.99],
         resultsList.append([float(train_log_loss), float(test_log_loss), float(test_accuracy)])
     # YOUR CODE HERE    
     # ??????????????
-    returnDict  = {} # make this have the same key-value structure as resultsDict plus an 'iters_for_convergence': scalar int and 'best_lr': scalar float
+    #mymodellist[0].history['accuracy'] access's dictionary
+    returnDict  = {'train_log_loss':[], 'test_log_loss':[], 'test_accuracy':[], 'learning_rates':[], 'iters_for_convergence':[], 'best_lr':[] } # make this have the same key-value structure as resultsDict plus an 'iters_for_convergence': scalar int, and 'best_lr': scalar float
+    
+
     # which will be the iteration number that this model could have converged and best lr you found (HINT: if the loss drop from one iter to the next is very small...)
-    # remember cur_model.history is a dictionary containing all the training history of THAT model for all training epochs(see LinearPotenitals class)
+    #print(best_lr)
+
+    # # remember cur_model.history is a dictionary containing all the training history of THAT model for all training epochs(see LinearPotenitals class)
     # return the best lr rate you found in term of performance as a dictionary Identical to resultsDict with the extra key-values mentioned above.
-    # ??????????????
+    # ?????????????? 
     
     return returnDict # remember to include key-values : 'iters_for_convergence': int scalar and 'best_lr': float scalar
 
@@ -468,13 +480,16 @@ def main():
     # Part 4 
     # A. Repeat steps 2,3 while adding L1 regularization to the objective
     # Func4_call 
-    #evaluate_with_model_regularization(model, data, optimizer, criterion = torch.nn.CrossEntropyLoss(), number_of_epochs = 1000)
+    evaluate_with_model_regularization(model, data, optimizer, criterion = torch.nn.CrossEntropyLoss(), number_of_epochs = 1000)
     # B. Repeat steps 2,3 while adding L2 regularization to the objective
     # ---|
     
     # Part 5
     # Explore different learning rates. For a given learning rate collection, report the lr-vs-iteration tradefoff, That is
     # for each learning rate, plot the test loss vs accuracy and report on where you believe the training has converged to a solution.
+    # learning_rate_iter_explore(model, data, optimizer, lr_range = [0.99, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75],
+    #                           criterion = torch.nn.CrossEntropyLoss(), number_of_epochs = 10000, 
+    #                           print_interval = 1000, print_plot = True)
     # Func5_call 
 
     
