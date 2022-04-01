@@ -2,6 +2,7 @@ import torch
 import sklearn, sklearn.datasets, sklearn.model_selection
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+import sklearn.metrics as metrics
 from sklearn.svm import SVC
 import numpy as np
 from matplotlib import pyplot as plt
@@ -61,8 +62,8 @@ class LinearPotentials(torch.nn.Module):
         mean_train_loss = np.mean(self.history['train_loss'])
         mean_test_loss = np.mean(self.history['test_loss'])
         std_test_accuracy = np.std(self.history['accuracy'])
-        print("Mean Accuracy: {}, std: {}".format(mean_test_accuracy, std))
-        return mean_test_accuracy, std
+        print("Mean Accuracy: {}, std: {}".format(mean_test_accuracy, std_test_accuracy))
+        return mean_test_accuracy, std_test_accuracy
         
 # ======================================================================================================
 # Functions
@@ -212,10 +213,9 @@ def evaluate_error_metrics(model, data, optimizer, criterion = torch.nn.CrossEnt
     # You can create an optimizer given an existing one like this:
     #model = LinearPotentials(num_features, num_classes, random_weights_init = True) #to makea  model 
     #curr_optim = type(optimizer)(cur_model.parameters(),lr=lr)
-    # the above creates a new optimizer that tracks the input cur_model's parameters; so input the model you want to train.
+    # the above creates a new optimizer that tracks     the input cur_model's parameters; so input the model you want to train.
     
     # Write the loop that will  run for number_of_experiments iters
-    #for i in number_of_experiments:
 
 
     # Instantiate a model like the given one and evaluate it calling the evaluate function (with the NEW optimizer and model)
@@ -224,7 +224,20 @@ def evaluate_error_metrics(model, data, optimizer, criterion = torch.nn.CrossEnt
     # Compute the mean and std here after all the results are logged. Refer to the LinearPotentials class for insperation
     # on how to compute the metrics from a list or a dictionary.
     # ??????????????
-    #mean_error = 1
+    result = []
+    for i in range(number_of_experiments):
+        cur_model = LinearPotentials(model.num_features, model.num_classes) #to makea  model 
+        curr_optim = type(optimizer)(cur_model.parameters(),lr=optimizer.defaults['lr'])
+        train_log_loss, test_log_loss, test_accuracy = evaluate_model(cur_model, data, curr_optim, lr = optimizer.defaults['lr'], 
+                                                                      criterion = torch.nn.CrossEntropyLoss(), print_plot = False,
+                                                                      print_interval=print_interval, number_of_epochs = number_of_epochs)
+        error = 1 - test_accuracy
+        result.append(error)
+    
+    
+    mean_error = np.mean(result)
+    error_std = np.std(result)
+
     return mean_error, error_std
 
 # -----------------------------------------------------------------------------------------------
@@ -364,7 +377,7 @@ def learning_rate_iter_explore(model, data, optimizer, lr_range = [0.99],
     # ??????????????
     #mymodellist[0].history['accuracy'] access's dictionary
     returnDict  = {'train_log_loss':[], 'test_log_loss':[], 'test_accuracy':[], 'learning_rates':[], 'iters_for_convergence':[], 'best_lr':[] } # make this have the same key-value structure as resultsDict plus an 'iters_for_convergence': scalar int, and 'best_lr': scalar float
-    
+    #want to use our resultList here   
 
     # which will be the iteration number that this model could have converged and best lr you found (HINT: if the loss drop from one iter to the next is very small...)
     #print(best_lr)
@@ -399,25 +412,30 @@ def svm_model_comparison(data, criterion = torch.nn.CrossEntropyLoss(),
     # YOUR CODE HERE
     # ??????????????
     #  Create your model here and get its performance
-    #model = LinearPotentials(num_features, num_classes, random_weights_init = True)
-    #criterion = which loss?
-    #optimizer = which optimizer?
+    model = LinearPotentials(num_features, num_classes, random_weights_init = True)
+    criterion = torch.nn.MultiMarginLoss()
+    optimizer = torch.optim.SGD(model.parameters(),lr=0.1, momentum=0.1)
     
     print("\nTraining Custom SVM to training data!!")
     print("========================================")
-    #my_svm_train_loss, my_svm_test_loss, my_svm_test_accuracy = how to evaluate this mode? Do we have a tool?
+    my_svm_train_loss, my_svm_test_loss, my_svm_test_accuracy = evaluate_model(model, data, optimizer, lr = 0.1, 
+                                                                      criterion = torch.nn.MultiMarginLoss(), print_plot = False,
+                                                                      print_interval=print_interval, number_of_epochs = number_of_epochs)
 
     print("Custom SVM Test Accuracy  = ", my_svm_test_accuracy)
     # Instantiate an SVM based on libsvm
+    svm = SVC(kernel= 'linear', random_state=1, C=0.1)
     #
     print("\nFitting sklearn's SVM to training data!!")
     print("==========================================")
     # Train model on train data
-    # 
+    svm.fit(x_train, y_train)
     # Need to transform output to PyTorch tensor (SVM returns ndarray), consult the pytorch manuals on how to conver ndarray to tensor
-    # Find accuracy in the same way we did in the evaluate function. DOes sklearn's SVM return predicted classes probs or raw likelihoods over all classes?
-    # ??????????????
-    
+    y_pred = svm.predict(x_test)
+    # # Find accuracy in the same wa #y we did in the evaluate function. DOes sklearn's SVM return predicted classes probs or raw likelihoods over all classes?
+    # # ??????????????
+    sklearn_svm_test_accuracy = metrics.accuracy_score(y_test,y_pred)
+
     print("SVM Test Accuracy  = ", sklearn_svm_test_accuracy)
        
     return my_svm_test_accuracy, sklearn_svm_test_accuracy
@@ -468,13 +486,16 @@ def main():
     # Given a learning rate of 0.1 train on train data and report accuracy on test data
     # Func2_call 
     evaluate_model(model, data, optimizer, lr = 0.1, criterion = torch.nn.CrossEntropyLoss(), 
-                  number_of_epochs = 10000, print_interval = 100, debug= False, print_plot=True)
+                   number_of_epochs = 10000, print_interval = 100, debug= False, print_plot=True)
     # ---|
     
     # Part 3
     # ------------
     # Evaluate 100 instances of the model above and report mean error rate and error std.
     # Func3_call 
+    error_mean, error_std = evaluate_error_metrics(model, data, optimizer, criterion = torch.nn.CrossEntropyLoss(), 
+                            number_of_experiments = 100, number_of_epochs = 1000, 
+                            print_interval = 1000, debug = False)
     # ---|
     
     # Part 4 
@@ -487,9 +508,9 @@ def main():
     # Part 5
     # Explore different learning rates. For a given learning rate collection, report the lr-vs-iteration tradefoff, That is
     # for each learning rate, plot the test loss vs accuracy and report on where you believe the training has converged to a solution.
-    # learning_rate_iter_explore(model, data, optimizer, lr_range = [0.99, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75],
-    #                           criterion = torch.nn.CrossEntropyLoss(), number_of_epochs = 10000, 
-    #                           print_interval = 1000, print_plot = True)
+    learning_rate_iter_explore(model, data, optimizer, lr_range = [0.99, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75],
+                              criterion = torch.nn.CrossEntropyLoss(), number_of_epochs = 10000, 
+                              print_interval = 1000, print_plot = True)
     # Func5_call 
 
     
@@ -497,6 +518,8 @@ def main():
     # SVM deployment. Using sklearn's SVM implmentation, train an SVM with a radial basis function kernel on the training set and report 
     # its performance in terms of Accuracy on the test set
     # # Func6_call 
+    svm_model_comparison(data, criterion = torch.nn.CrossEntropyLoss(), 
+                   number_of_epochs = 10000, print_interval = 1000, print_plot = True)
     
 if __name__ == "__main__":
     main()
